@@ -1721,7 +1721,7 @@ static void SV_Say (qbool team)
 
 	if (!sv_client->logged)
 	{
-		SV_ParseLogin(sv_client);
+		SV_ParseLogin(sv_client, text);
 		return;
 	}
 

@@ -575,19 +575,21 @@ qbool SV_Login(client_t *cl)
 	}
 
 	/* Login helper active */
-	if (sv_login_helper.string[0]) {
+	if (sv_login_helper.string[0] != '\0') {
 
 		struct login_helper *helper = cl->login_helper;
 
 		/* Spawn login helper program if not spawned yet */
 		if (cl->login_helper == NULL) {
+
+			/* Spawn login helper */
 			helper = login_helper_new(sv_login_helper.string);
 			if (helper == NULL) {
 				/* Failed to spawn helper program */
 				return false;
 			}
 
-			/* Setup login callbacks */
+			/* Setup login helper callbacks */
 			helper->command_handler = SV_LoginHelperCommand_cb;
 			helper->input_handler = SV_LoginHelperInput_cb;
 			helper->print_handler = SV_LoginHelperPrint_cb;
@@ -600,16 +602,8 @@ qbool SV_Login(client_t *cl)
 
 		int status = login_helper_check_fds(helper);
 
-		/* Error */
-		if (status == -1) {
-			SV_Logout(cl);
-			cl->logged = -1;
-			login_helper_free(helper);
-			cl->login_helper = NULL;
-		}
-
-		/* EOF from helper */
-		else if (status == 1) {
+		/* Error or EOF */
+		if (status != 0) {
 			SV_Logout(cl);
 			cl->logged = -1;
 			login_helper_free(helper);
@@ -656,10 +650,29 @@ void SV_Logout(client_t *cl)
 	}
 }
 
-void SV_ParseLogin(client_t *cl)
+void SV_ParseLogin(client_t *cl, const char *text)
 {
 	extern cvar_t sv_forcenick;
 	char *log1, *pass;
+
+	if (cl->login_helper != NULL) {
+		struct login_helper *helper = cl->login_helper;
+
+		/* Was waiting input from the user */
+		if (cl->login_helper_waiting_input) {
+
+			/* Send requested input to helper program */
+			if (login_helper_write(helper, "INPUT", text)) {
+
+				/* Logs out the user on error */
+				SV_Logout(cl);
+				cl->logged = -1;
+				return;
+			}
+		}
+
+		return;
+	}
 
 	if (Cmd_Argc() > 2)
 	{

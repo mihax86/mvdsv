@@ -354,6 +354,7 @@ typedef struct client_s
 	float           lastteleport_teleportyaw; // new yaw angle, post-teleport
 
 	struct login_helper *login_helper; /* Login helper (sv_login 2) */
+	qbool login_helper_waiting_input;
 } client_t;
 
 // a client can leave the server in one of four ways:
@@ -1009,7 +1010,7 @@ void SV_ListAccount_f (void);
 void Login_Init (void);
 qbool SV_Login(client_t *cl);
 void SV_Logout(client_t *cl);
-void SV_ParseLogin(client_t *cl);
+void SV_ParseLogin(client_t *cl, const char *text);
 void SV_LoginCheckTimeOut(client_t *cl);
 
 // sv_master.c
