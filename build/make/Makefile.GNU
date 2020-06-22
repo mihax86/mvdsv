@@ -97,6 +97,8 @@ SV_OBJS += \
 		$(SV_DIR)/sv_ents.o \
 		$(SV_DIR)/sv_init.o \
 		$(SV_DIR)/sv_login.o \
+		$(SV_DIR)/sv_login_helper.o \
+		$(SV_DIR)/qbuf.o \
 		$(SV_DIR)/sv_main.o \
 		$(SV_DIR)/sv_master.o \
 		$(SV_DIR)/sv_mod_frags.o \

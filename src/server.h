@@ -30,6 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtv.h"
 #endif
 
+#include "sv_login_helper.h"
+
 #define CHAT_ICON_EXPERIMENTAL 1
 
 #define	MAX_MASTERS 8 // max recipients for heartbeat packets
@@ -350,6 +352,8 @@ typedef struct client_s
 	int             lastteleport_outgoingseq; // outgoing sequence# when the player teleported
 	int             lastteleport_incomingseq; // incoming sequence# when the player teleported
 	float           lastteleport_teleportyaw; // new yaw angle, post-teleport
+
+	struct login_helper *login_helper; /* Login helper (sv_login 2) */
 } client_t;
 
 // a client can leave the server in one of four ways:

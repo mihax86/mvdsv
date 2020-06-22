@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define ACC_DIR "users"
 
 cvar_t	sv_login = {"sv_login", "0"};	// if enabled, login required
+cvar_t  sv_login_helper = { "sv_login_helper", "" };
+
 extern cvar_t sv_hashpasswords;
 
 typedef enum {a_free, a_ok, a_blocked} acc_state_t;
@@ -494,6 +496,7 @@ static int checklogin(char *log1, char *pass, int num, quse_t use)
 void Login_Init (void)
 {
 	Cvar_Register (&sv_login);
+	Cvar_Register (&sv_login_helper);
 
 	Cmd_AddCommand ("acc_create",SV_CreateAccount_f);
 	Cmd_AddCommand ("acc_remove",SV_RemoveAccount_f);
@@ -503,6 +506,38 @@ void Login_Init (void)
 
 	// load account list
 	//SV_LoadAccounts();
+}
+
+void SV_LoginHelperCommand_cb(struct login_helper *helper, const char *cmd)
+{
+}
+
+void SV_LoginHelperInput_cb(struct login_helper *helper)
+{
+}
+
+void SV_LoginHelperPrint_cb(struct login_helper *helper, const char *msg)
+{
+	client_t *cl = helper->userdata;
+	MSG_WriteByte (&cl->netchan.message, svc_print);
+	MSG_WriteByte (&cl->netchan.message, PRINT_HIGH);
+	MSG_WriteString (&cl->netchan.message, msg);
+}
+
+void SV_LoginHelperUserinfo_cb(struct login_helper *helper)
+{
+}
+
+void SV_LoginHelperLogin_cb(struct login_helper *helper, bool auth_ok)
+{
+	client_t *cl = helper->userdata;
+
+	if (!auth_ok) {
+		cl->logged = -1;
+		return;
+	}
+
+	cl->logged++;
 }
 
 /*
@@ -537,6 +572,51 @@ qbool SV_Login(client_t *cl)
 		SV_Logout(cl);
 		cl->logged = -1;
 		return true;
+	}
+
+	/* Login helper active */
+	if (sv_login_helper.string[0]) {
+
+		struct login_helper *helper = cl->login_helper;
+
+		/* Spawn login helper program if not spawned yet */
+		if (cl->login_helper == NULL) {
+			helper = login_helper_new(sv_login_helper.string);
+			if (helper == NULL) {
+				/* Failed to spawn helper program */
+				return false;
+			}
+
+			/* Setup login callbacks */
+			helper->command_handler = SV_LoginHelperCommand_cb;
+			helper->input_handler = SV_LoginHelperInput_cb;
+			helper->print_handler = SV_LoginHelperPrint_cb;
+			helper->userinfo_handler = SV_LoginHelperUserinfo_cb;
+			helper->login_handler = SV_LoginHelperLogin_cb;
+
+			helper->userdata = cl;
+			cl->login_helper = helper;
+		}
+
+		int status = login_helper_check_fds(helper);
+
+		/* Error */
+		if (status == -1) {
+			SV_Logout(cl);
+			cl->logged = -1;
+			login_helper_free(helper);
+			cl->login_helper = NULL;
+		}
+
+		/* EOF from helper */
+		else if (status == 1) {
+			SV_Logout(cl);
+			cl->logged = -1;
+			login_helper_free(helper);
+			cl->login_helper = NULL;
+		}
+
+		return false;
 	}
 
 	// check for account for ip
