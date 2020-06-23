@@ -662,13 +662,17 @@ void SV_ParseLogin(client_t *cl, const char *text)
 		if (cl->login_helper_waiting_input) {
 
 			/* Send requested input to helper program */
-			if (login_helper_write(helper, "INPUT", text)) {
+			int status = login_helper_write(helper, "INPUT", text);
 
-				/* Logs out the user on error */
+			/* Error writing input to helper program */
+			if (status) {
 				SV_Logout(cl);
 				cl->logged = -1;
 				return;
 			}
+
+			/* Input dispatched to helper program */
+			cl->login_helper_waiting_input = false;
 		}
 
 		return;
