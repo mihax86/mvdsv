@@ -1477,6 +1477,42 @@ qbool Info_Convert(ctxinfo_t *ctx, char *str)
 	return true;
 }
 
+qbool Info_Convert_2(client_t *cl, char *str)
+{
+	char name[MAX_KEY_STRING], value[MAX_KEY_STRING], *start;
+	ctxinfo_t *ctx = &cl->_userinfoshort_ctx_;
+	if (!ctx)
+		return false;
+
+	for ( ; str && str[0]; )
+	{
+		if (!(str = strchr(str, '\\')))
+			break;
+
+		start = str; // start of name
+
+		if (!(str = strchr(start + 1, '\\')))  // end of name
+			break;
+
+		strlcpy(name, start + 1, min(str - start, (int)sizeof(name)));
+
+		start = str; // start of value
+
+		str = strchr(start + 1, '\\'); // end of value
+
+		strlcpy(value, start + 1, str ? min(str - start, (int)sizeof(value)) : (int)sizeof(value));
+
+		Info_SetStar(ctx, name, value);
+		int i = cl - svs.clients;
+		MSG_WriteByte (&sv.reliable_datagram, svc_setinfo);
+		MSG_WriteByte (&sv.reliable_datagram, i);
+		MSG_WriteString (&sv.reliable_datagram, name);
+		MSG_WriteString (&sv.reliable_datagram, value);
+	}
+
+	return true;
+}
+
 qbool Info_ReverseConvert(ctxinfo_t *ctx, char *str, int size)
 {
 	info_t *a;

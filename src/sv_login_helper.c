@@ -14,9 +14,12 @@ extern char **environ;
 
 /* Those are the supported opcodes */
 #define LOGIN_HELPER_OPCODE_USERINFO "UINFO"
+#define LOGIN_HELPER_OPCODE_SETINFO "SINFO"
 #define LOGIN_HELPER_OPCODE_PRINT "PRINT"
-#define LOGIN_HELPER_OPCODE_INPUT "INPUT"
+#define LOGIN_HELPER_OPCODE_BROADCAST "BCAST"
 #define LOGIN_HELPER_OPCODE_SERVER_COMMAND "SVCMD"
+#define LOGIN_HELPER_OPCODE_CLIENT_COMMAND "CLCMD"
+#define LOGIN_HELPER_OPCODE_INPUT "INPUT"
 #define LOGIN_HELPER_OPCODE_LOGIN "LOGIN"
 
 static void close_pipe(int *fds)
@@ -128,29 +131,48 @@ static int login_helper_parse(struct login_helper *helper, const char *data,
 	/* Userinfo request */
 	if (!memcmp(data, LOGIN_HELPER_OPCODE_USERINFO,
 			LOGIN_HELPER_OPCODE_SIZE)) {
-		helper->userinfo_handler(helper);
-		return 0;
+		return helper->userinfo_handler(helper);
+	}
+
+	/* Setinfo request */
+	else if (!memcmp(data, LOGIN_HELPER_OPCODE_SETINFO,
+			LOGIN_HELPER_OPCODE_SIZE)) {
+		return helper->setinfo_handler(helper,
+			__to_c_string(data + 5, size - 5));
 	}
 
 	/* Print message request */
 	else if (!memcmp(data, LOGIN_HELPER_OPCODE_PRINT,
 			LOGIN_HELPER_OPCODE_SIZE)) {
-		helper->print_handler(helper, __to_c_string(data + 5, size - 5));
-		return 0;
+		return helper->print_handler(helper,
+			__to_c_string(data + 5, size - 5));
+	}
+
+	/* Broadcast message request */
+	else if (!memcmp(data, LOGIN_HELPER_OPCODE_BROADCAST,
+			LOGIN_HELPER_OPCODE_SIZE)) {
+		return helper->broadcast_handler(helper,
+			__to_c_string(data + 5, size - 5));
 	}
 
 	/* Input request */
 	else if (!memcmp(data, LOGIN_HELPER_OPCODE_INPUT,
 			LOGIN_HELPER_OPCODE_SIZE)) {
-		helper->input_handler(helper);
-		return 0;
+		return helper->input_handler(helper);
 	}
 
 	/* Server command request */
 	else if (!memcmp(data, LOGIN_HELPER_OPCODE_SERVER_COMMAND,
 			LOGIN_HELPER_OPCODE_SIZE)) {
-		helper->command_handler(helper, __to_c_string(data + 5, size - 5));
-		return 0;
+		return helper->server_command_handler(helper,
+			__to_c_string(data + 5, size - 5));
+	}
+
+	/* Client command request */
+	else if (!memcmp(data, LOGIN_HELPER_OPCODE_CLIENT_COMMAND,
+			LOGIN_HELPER_OPCODE_SIZE)) {
+		return helper->client_command_handler(helper,
+			__to_c_string(data + 5, size - 5));
 	}
 
 	/* Login result */
@@ -161,16 +183,14 @@ static int login_helper_parse(struct login_helper *helper, const char *data,
 		/* Authentication successful */
 		if (!memcmp(buf, "success", sizeof("success")-1)
 			|| !memcmp(buf, "SUCCESS", sizeof("SUCCESS")-1))
-			helper->login_handler(helper, true);
+			return helper->login_handler(helper, true);
 
 		/* Authentication failed */
 		else
-			helper->login_handler(helper, false);
+			return helper->login_handler(helper, false);
 
-		return 0;
 	}
 
-	printf("[%s]\n", data);
 	/* Unknown opcode */
 	return -1;
 }

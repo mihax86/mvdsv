@@ -119,6 +119,10 @@ void SV_LoadAccounts(void)
 	account_t *acc = accounts;
 	client_t *cl;
 
+	/* Login helper active, no need to change users state */
+	if (sv_login_helper.string[0] != '\0')
+		return;
+
 	if ( (f = fopen( va("%s/" ACC_FILE, fs_gamedir) ,"rt")) == NULL)
 	{
 		Con_DPrintf("couldn't open " ACC_FILE "\n");
@@ -506,38 +510,102 @@ void Login_Init (void)
 
 	// load account list
 	//SV_LoadAccounts();
+
+	/* Initialize login helper state */
+	client_t *cl;
+	for (cl = svs.clients; cl - svs.clients < MAX_CLIENTS; cl++) {
+		cl->logged = 0;
+		cl->login[0] = 0;
+		cl->login_helper = NULL;
+		cl->login_helper_waiting_input = false;
+	}
 }
 
-void SV_LoginHelperCommand_cb(struct login_helper *helper, const char *cmd)
+static int SV_LoginHelperServerCommand_cb(struct login_helper *helper, const char *cmd)
 {
+	Sys_Printf("Executing command on the server: %s\n", cmd);
+	Cmd_ExecuteString(cmd);
+	return 0;
 }
 
-void SV_LoginHelperInput_cb(struct login_helper *helper)
+static int SV_LoginHelperClientCommand_cb(struct login_helper *helper, const char *cmd)
 {
+	client_t *cl = helper->userdata;
+	Sys_Printf("Executing command on client %s: %s\n", cl->name, cmd);
+	MSG_WriteByte (&cl->netchan.message, svc_stufftext);
+	MSG_WriteString (&cl->netchan.message, va("%s\n", cmd));
+	return 0;
 }
 
-void SV_LoginHelperPrint_cb(struct login_helper *helper, const char *msg)
+extern qbool Info_Convert_2(client_t *cl, char *str);
+static int SV_LoginHelperSetinfo_cb(struct login_helper *helper, const char *userinfo)
+{
+	client_t *cl = helper->userdata;
+
+	if (!Info_Convert_2(cl, userinfo))
+		return -1;
+
+	Sys_Printf("Setinfo for client %s.\n", cl->name);
+	return 0;
+}
+
+static int SV_LoginHelperInput_cb(struct login_helper *helper)
+{
+	client_t *cl = helper->userdata;
+	/* Grab user input on next SV_Say() */
+	cl->login_helper_waiting_input = true;
+	Sys_Printf("Waiting for input from %s...\n", cl->name);
+	return 0;
+}
+
+static int SV_LoginHelperPrint_cb(struct login_helper *helper, const char *msg)
 {
 	client_t *cl = helper->userdata;
 	MSG_WriteByte (&cl->netchan.message, svc_print);
 	MSG_WriteByte (&cl->netchan.message, PRINT_HIGH);
-	MSG_WriteString (&cl->netchan.message, msg);
+	MSG_WriteString (&cl->netchan.message, va("%s\n", msg));
+	return 0;
 }
 
-void SV_LoginHelperUserinfo_cb(struct login_helper *helper)
+static int SV_LoginHelperBroadcast_cb(struct login_helper *helper, const char *msg)
 {
+	SV_BroadcastPrintf(PRINT_CHAT, "%s\n", msg);
+	return 0;
 }
 
-void SV_LoginHelperLogin_cb(struct login_helper *helper, bool auth_ok)
+static int SV_LoginHelperUserinfo_cb(struct login_helper *helper)
+{
+	client_t *cl = helper->userdata;
+	char info[2048];
+	if (!Info_ReverseConvert(&cl->_userinfo_ctx_, info, sizeof(info)))
+		return -1;
+
+	/* Write userinfo back to login helper */
+	int status = login_helper_write(helper, "UINFO", info);
+	if (status) {
+		SV_DropClient(cl);
+		return -1;
+	}
+	return 0;
+}
+
+static int SV_LoginHelperLogin_cb(struct login_helper *helper, bool auth_ok)
 {
 	client_t *cl = helper->userdata;
 
 	if (!auth_ok) {
 		cl->logged = -1;
-		return;
+		cl->login[0] = 0;
+		SV_DropClient(cl);
+		return 0;
 	}
 
 	cl->logged++;
+
+	/* Continue connection process */
+	MSG_WriteByte (&cl->netchan.message, svc_stufftext);
+	MSG_WriteString (&cl->netchan.message, "cmd new\n");
+	return 0;
 }
 
 /*
@@ -586,30 +654,26 @@ qbool SV_Login(client_t *cl)
 			helper = login_helper_new(sv_login_helper.string);
 			if (helper == NULL) {
 				/* Failed to spawn helper program */
+				SV_DropClient(cl);
 				return false;
 			}
 
 			/* Setup login helper callbacks */
-			helper->command_handler = SV_LoginHelperCommand_cb;
+			helper->server_command_handler = SV_LoginHelperServerCommand_cb;
+			helper->client_command_handler = SV_LoginHelperClientCommand_cb;
 			helper->input_handler = SV_LoginHelperInput_cb;
 			helper->print_handler = SV_LoginHelperPrint_cb;
+			helper->broadcast_handler = SV_LoginHelperBroadcast_cb;
 			helper->userinfo_handler = SV_LoginHelperUserinfo_cb;
+			helper->setinfo_handler = SV_LoginHelperSetinfo_cb;
 			helper->login_handler = SV_LoginHelperLogin_cb;
 
 			helper->userdata = cl;
 			cl->login_helper = helper;
 		}
 
-		int status = login_helper_check_fds(helper);
-
-		/* Error or EOF */
-		if (status != 0) {
-			SV_Logout(cl);
-			cl->logged = -1;
-			login_helper_free(helper);
-			cl->login_helper = NULL;
-		}
-
+		cl->logged = false;
+		cl->login[0] = 0;
 		return false;
 	}
 
@@ -650,12 +714,38 @@ void SV_Logout(client_t *cl)
 	}
 }
 
+void SV_LoginHelperUpdate()
+{
+	client_t *cl = svs.clients;
+	int i;
+
+	for (i = 0; i < MAX_CLIENTS; i++, cl++) {
+
+		struct login_helper *helper = cl->login_helper;
+
+		/* No login helper */
+		if (helper == NULL)
+			continue;
+
+		int status = login_helper_check_fds(helper);
+
+		/* Drop client if any error occur during the logon process */
+		if (status) {
+			login_helper_free(helper);
+			cl->login_helper = NULL;
+			SV_DropClient(cl);
+			continue;
+		}
+	}
+}
+
 void SV_ParseLogin(client_t *cl, const char *text)
 {
 	extern cvar_t sv_forcenick;
 	char *log1, *pass;
 
-	if (cl->login_helper != NULL) {
+	if (sv_login_helper.string[0] != '\0' && cl->login_helper != NULL) {
+
 		struct login_helper *helper = cl->login_helper;
 
 		/* Was waiting input from the user */
@@ -664,10 +754,13 @@ void SV_ParseLogin(client_t *cl, const char *text)
 			/* Send requested input to helper program */
 			int status = login_helper_write(helper, "INPUT", text);
 
-			/* Error writing input to helper program */
+			/* Drop client if any error occur whilst
+			 * writting data to helper program */
 			if (status) {
-				SV_Logout(cl);
-				cl->logged = -1;
+				login_helper_free(helper);
+				cl->login_helper = NULL;
+				cl->login_helper_waiting_input = false;
+				SV_DropClient(cl);
 				return;
 			}
 

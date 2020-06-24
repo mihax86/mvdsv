@@ -6,16 +6,16 @@
 #include "qbuf.h"
 
 struct login_helper {
-	/* Arbitary user data */
+	/* Arbitary user data (usually the client_t struct) */
 	void *userdata;
 
 	/* Used for communication with the helper program */
 	int stdin, stdout;
 
-	/* PID of the helper program */
+	/* PID of the helper program. (unused) SIGCHILD is ignored by mvdsv */
 	pid_t pid;
 
-	/* Wait pid */
+	/* Wait pid. (unused) SIGCHILD is ignored by mvdsv */
 	bool wait_pid;
 
 	/* Receive buffer */
@@ -24,21 +24,37 @@ struct login_helper {
 	/* Send buffer */
 	struct qbuf sendbuf;
 
-	/* Those callbacks *must* be set by the MVDSV server: */
-	/* Must reply with the full userinfo string */
-	void (*userinfo_handler)(struct login_helper *helper);
+	/* All those callbacks *must* be set by the MVDSV server */
 
-	/* Must print on the player screen PRINT_HIGH */
-	void (*print_handler)(struct login_helper *helper, const char *msg);
+	/* Will reply with the full userinfo string */
+	int (*userinfo_handler)(struct login_helper *helper);
 
-	/* Must execute any command received by this callback on the server */
-	void (*command_handler)(struct login_helper *helper, const char *cmd);
+	/* Must add/modify the client's userinfo string */
+	int (*setinfo_handler)(struct login_helper *helper, const char *uinfo);
 
-	/* Must prompt the player for input */
-	void (*input_handler)(struct login_helper *helper);
+	/* Will print on the client's screen PRINT_HIGH */
+	int (*print_handler)(struct login_helper *helper, const char *msg);
 
-	/* This returns whether the authentication was successful */
-	void (*login_handler)(struct login_helper *helper, bool auth_success);
+	/* Message will be broadcast to all the server clients */
+	int (*broadcast_handler)(struct login_helper *helper, const char *msg);
+
+	/* Will prompt the player for input */
+	int (*input_handler)(struct login_helper *helper);
+
+	/* Must execute any command received by this callback on the
+	 * server console */
+	int (*server_command_handler)(struct login_helper *helper,
+		const char *cmd);
+
+	/* Must execute any command received by this callback on the
+	 * client's console */
+	int (*client_command_handler)(struct login_helper *helper,
+		const char *cmd);
+
+	/* This returns whether the authentication was successful
+	 * If the auth fails MVDSV will disconnect the user and close pipe
+	 * with the helper program */
+	int (*login_handler)(struct login_helper *helper, bool auth_success);
 };
 
 struct login_helper *login_helper_new(char *program);

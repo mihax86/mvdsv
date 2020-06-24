@@ -3218,6 +3218,9 @@ void SV_Frame (double time1)
 	// get packets
 	SV_ReadPackets ();
 
+	void SV_LoginHelperUpdate();
+	SV_LoginHelperUpdate();
+
 	// move autonomous things around if enough time has passed
 	if (!sv.paused) {
 		SV_Physics();
