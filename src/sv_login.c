@@ -706,11 +706,22 @@ qbool SV_Login(client_t *cl)
 
 void SV_Logout(client_t *cl)
 {
+	/* Already logged in */
 	if (cl->logged > 0)
 	{
 		accounts[cl->logged-1].inuse--;
 		cl->login[0] = 0;
 		cl->logged = 0;
+	}
+
+	/* During login process */
+	else {
+		/* Close helper if program is running */
+		if (cl->login_helper != NULL) {
+			login_helper_free(cl->login_helper);
+			cl->login_helper = NULL;
+			cl->login_helper_waiting_input = false;
+		}
 	}
 }
 
