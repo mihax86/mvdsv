@@ -714,14 +714,11 @@ void SV_Logout(client_t *cl)
 		cl->logged = 0;
 	}
 
-	/* During login process */
-	else {
-		/* Close helper if program is running */
-		if (cl->login_helper != NULL) {
-			login_helper_free(cl->login_helper);
-			cl->login_helper = NULL;
-			cl->login_helper_waiting_input = false;
-		}
+	/* Close helper if program is running */
+	if (cl->login_helper != NULL) {
+		login_helper_free(cl->login_helper);
+		cl->login_helper = NULL;
+		cl->login_helper_waiting_input = false;
 	}
 }
 
@@ -742,8 +739,6 @@ void SV_LoginHelperUpdate()
 
 		/* Drop client if any error occur during the logon process */
 		if (status) {
-			login_helper_free(helper);
-			cl->login_helper = NULL;
 			SV_DropClient(cl);
 			continue;
 		}
@@ -768,9 +763,6 @@ void SV_ParseLogin(client_t *cl, const char *text)
 			/* Drop client if any error occur whilst
 			 * writting data to helper program */
 			if (status) {
-				login_helper_free(helper);
-				cl->login_helper = NULL;
-				cl->login_helper_waiting_input = false;
 				SV_DropClient(cl);
 				return;
 			}
