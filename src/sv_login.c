@@ -737,7 +737,7 @@ void SV_LoginHelperUpdate()
 
 		int status = login_helper_check_fds(helper);
 
-		/* Drop client if any error occur during the logon process */
+		/* Drop client on error or EOF */
 		if (status) {
 			SV_DropClient(cl);
 			continue;
@@ -750,7 +750,7 @@ void SV_ParseLogin(client_t *cl, const char *text)
 	extern cvar_t sv_forcenick;
 	char *log1, *pass;
 
-	if (sv_login_helper.string[0] != '\0' && cl->login_helper != NULL) {
+	if (cl->login_helper != NULL) {
 
 		struct login_helper *helper = cl->login_helper;
 
