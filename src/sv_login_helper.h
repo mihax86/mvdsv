@@ -15,9 +15,6 @@ struct login_helper {
 	/* PID of the helper program. (unused) SIGCHILD is ignored by mvdsv */
 	pid_t pid;
 
-	/* Wait pid. (unused) SIGCHILD is ignored by mvdsv */
-	bool wait_pid;
-
 	/* Receive buffer */
 	struct qbuf recvbuf;
 
@@ -30,10 +27,13 @@ struct login_helper {
 	int (*userinfo_handler)(struct login_helper *helper);
 
 	/* Must add/modify the client's userinfo string */
-	int (*setinfo_handler)(struct login_helper *helper, const char *uinfo);
+	int (*setauth_handler)(struct login_helper *helper, const char *auth);
 
 	/* Will print on the client's screen PRINT_HIGH */
 	int (*print_handler)(struct login_helper *helper, const char *msg);
+
+	/* Will print on the center client's screen */
+	int (*centerprint_handler)(struct login_helper *helper, const char *msg);
 
 	/* Message will be broadcast to all the server clients */
 	int (*broadcast_handler)(struct login_helper *helper, const char *msg);
@@ -51,10 +51,8 @@ struct login_helper {
 	int (*client_command_handler)(struct login_helper *helper,
 		const char *cmd);
 
-	/* This returns whether the authentication was successful
-	 * If the auth fails MVDSV will disconnect the user and close pipe
-	 * with the helper program */
-	int (*login_handler)(struct login_helper *helper, bool auth_success);
+	/* That will make the user join the server */
+	int (*login_handler)(struct login_helper *helper);
 };
 
 struct login_helper *login_helper_new(char *program);

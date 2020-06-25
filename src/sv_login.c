@@ -537,15 +537,12 @@ static int SV_LoginHelperClientCommand_cb(struct login_helper *helper, const cha
 	return 0;
 }
 
-extern qbool Info_Convert_2(client_t *cl, char *str);
-static int SV_LoginHelperSetinfo_cb(struct login_helper *helper, const char *userinfo)
+static int SV_LoginHelperSetAuth_cb(struct login_helper *helper, const char *auth)
 {
 	client_t *cl = helper->userdata;
-
-	if (!Info_Convert_2(cl, userinfo))
-		return -1;
-
-	Sys_Printf("Setinfo for client %s.\n", cl->name);
+	Info_SetStar(&cl->_userinfo_ctx_, "*auth", auth);
+	ProcessUserInfoChange(cl, "*auth", "");
+	Sys_Printf("Set Auth for client %s.\n", cl->name);
 	return 0;
 }
 
@@ -567,6 +564,14 @@ static int SV_LoginHelperPrint_cb(struct login_helper *helper, const char *msg)
 	return 0;
 }
 
+static int SV_LoginHelperCenterPrint_cb(struct login_helper *helper, const char *msg)
+{
+	client_t *cl = helper->userdata;
+	MSG_WriteByte (&cl->netchan.message, svc_centerprint);
+	MSG_WriteString (&cl->netchan.message, va("%s\n", msg));
+	return 0;
+}
+
 static int SV_LoginHelperBroadcast_cb(struct login_helper *helper, const char *msg)
 {
 	SV_BroadcastPrintf(PRINT_CHAT, "%s\n", msg);
@@ -577,31 +582,20 @@ static int SV_LoginHelperUserinfo_cb(struct login_helper *helper)
 {
 	client_t *cl = helper->userdata;
 	char info[2048];
+
+	/* TODO: Add real ip to this information */
+	/* Fetch userinfo string */
 	if (!Info_ReverseConvert(&cl->_userinfo_ctx_, info, sizeof(info)))
 		return -1;
 
 	/* Write userinfo back to login helper */
-	int status = login_helper_write(helper, "UINFO", info);
-	if (status) {
-		SV_DropClient(cl);
-		return -1;
-	}
-	return 0;
+	return login_helper_write(helper, "UINFO", info);
 }
 
-static int SV_LoginHelperLogin_cb(struct login_helper *helper, bool auth_ok)
+static int SV_LoginHelperLogin_cb(struct login_helper *helper)
 {
 	client_t *cl = helper->userdata;
-
-	if (!auth_ok) {
-		cl->logged = -1;
-		cl->login[0] = 0;
-		SV_DropClient(cl);
-		return 0;
-	}
-
 	cl->logged++;
-
 	/* Continue connection process */
 	MSG_WriteByte (&cl->netchan.message, svc_stufftext);
 	MSG_WriteString (&cl->netchan.message, "cmd new\n");
@@ -663,9 +657,10 @@ qbool SV_Login(client_t *cl)
 			helper->client_command_handler = SV_LoginHelperClientCommand_cb;
 			helper->input_handler = SV_LoginHelperInput_cb;
 			helper->print_handler = SV_LoginHelperPrint_cb;
+			helper->centerprint_handler = SV_LoginHelperCenterPrint_cb;
 			helper->broadcast_handler = SV_LoginHelperBroadcast_cb;
 			helper->userinfo_handler = SV_LoginHelperUserinfo_cb;
-			helper->setinfo_handler = SV_LoginHelperSetinfo_cb;
+			helper->setauth_handler = SV_LoginHelperSetAuth_cb;
 			helper->login_handler = SV_LoginHelperLogin_cb;
 
 			helper->userdata = cl;
