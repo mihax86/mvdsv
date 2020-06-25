@@ -293,11 +293,6 @@ static int login_helper_send(struct login_helper *helper)
 	return 0;
 }
 
-static inline int __max_fd(int a, int b)
-{
-	return (a > b) ? a : b;
-}
-
 int login_helper_check_fds(struct login_helper *helper)
 {
 	/* Send any buffered data */
