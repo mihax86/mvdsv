@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
 #include <paths.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -26,6 +28,24 @@ static void close_pipe(int *fds)
 {
 	close(fds[0]);
 	close(fds[1]);
+}
+
+static int __set_nonblocking(int fd)
+{
+	int flags;
+
+	/* If they have O_NONBLOCK, use the Posix way to do it */
+#if defined(O_NONBLOCK)
+	/* FIXME: O_NONBLOCK is defined but broken on SunOS 4.1.x and AIX 3.2.5. */
+	flags = fcntl(fd, F_GETFL, 0);
+	if (flags == -1)
+		flags = 0;
+	return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#else
+	/* Otherwise, use the old way of doing it */
+	flags = 1;
+	return ioctl(fd, FIOBIO, &flags);
+#endif
 }
 
 static pid_t login_helper_launch(char *program, int *stdin, int *stdout)
@@ -75,6 +95,10 @@ static pid_t login_helper_launch(char *program, int *stdin, int *stdout)
 	close(stdout_pipe_fd[1]);
 	*stdin = stdin_pipe_fd[1];
 	*stdout = stdout_pipe_fd[0];
+
+	/* Set fds all to non-blocking mode */
+	__set_nonblocking(*stdin);
+	__set_nonblocking(*stdout);
 
 	/* Child process pid */
 	return pid;
@@ -221,7 +245,7 @@ static int login_helper_receive(struct login_helper *helper)
 		return 1;
 
 	/* Increment used bytes */
-	qbuf_use(qbuf, status);
+	qbuf_mark_used(qbuf, status);
 
 	/* Parse data from helper */
 	unsigned int remaining_len = qbuf_len(qbuf);
@@ -241,7 +265,7 @@ static int login_helper_receive(struct login_helper *helper)
 			return -1;
 
 		/* Mark bytes unused */
-		qbuf_unuse(qbuf, size + 4);
+		qbuf_mark_unused(qbuf, size + 4);
 
 		/* Update remaining len */
 		remaining_len = qbuf_len(qbuf);
@@ -265,7 +289,7 @@ static int login_helper_send(struct login_helper *helper)
 	}
 
 	/* Mark unused */
-	qbuf_unuse(sendbuf, status);
+	qbuf_mark_unused(sendbuf, status);
 	return 0;
 }
 
@@ -276,52 +300,15 @@ static inline int __max_fd(int a, int b)
 
 int login_helper_check_fds(struct login_helper *helper)
 {
-	/* Setup write fds if we have buffered data */
-	struct qbuf *sendbuf = &helper->sendbuf;
-	unsigned int sendbuf_len = qbuf_len(sendbuf);
-	fd_set wfds;
-	FD_ZERO(&wfds);
-	if (sendbuf_len > 0)
-		FD_SET(helper->stdin, &wfds);
-
-	/* Setup read fds */
-	fd_set rfds;
-	FD_ZERO(&rfds);
-	FD_SET(helper->stdout, &rfds);
-
-	static struct timeval tv = { 0 };
-	int status = select(__max_fd(helper->stdin, helper->stdout) + 1,
-		&rfds, &wfds, NULL, &tv);
-
-	/* select() error */
-	if (status == -1) {
-
-		/* Was just a system interrupt */
-		if (errno == EINTR)
-			return 0;
-
-		return -1;
-	}
-
-	/* Nothing to be done */
-	if (status == 0)
-		return 0;
-
-	/* Send buffered data */
-	if (FD_ISSET(helper->stdin, &wfds)) {
-		status = login_helper_send(helper);
-		if (status == -1)
-			return -1;
-	}
-
-	/* Read buffered */
-	if (FD_ISSET(helper->stdout, &rfds)) {
-		status = login_helper_receive(helper);
+	/* Send any buffered data */
+	if (qbuf_len(&helper->sendbuf) > 0) {
+		int status = login_helper_send(helper);
 		if (status)
 			return status;
 	}
 
-	return 0;
+	/* Read buffered */
+	return login_helper_receive(helper);
 }
 
 int login_helper_write(struct login_helper *helper,
@@ -350,7 +337,7 @@ int login_helper_write(struct login_helper *helper,
 	memcpy(sendbuf->end + 4 + opcode_size, data, data_size);
 
 	/* Mark bytes used */
-	qbuf_use(sendbuf, needed_space);
+	qbuf_mark_used(sendbuf, needed_space);
 
 	/* Success */
 	return login_helper_send(helper);

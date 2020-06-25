@@ -69,12 +69,12 @@ void qbuf_reorganize(struct qbuf *qbuf)
 	__qbuf_memmove(qbuf);
 }
 
-void qbuf_use(struct qbuf *qbuf, unsigned int bytes)
+void qbuf_mark_used(struct qbuf *qbuf, unsigned int bytes)
 {
 	qbuf->end += bytes;
 }
 
-void qbuf_unuse(struct qbuf *qbuf, unsigned int bytes)
+void qbuf_mark_unused(struct qbuf *qbuf, unsigned int bytes)
 {
 	qbuf->start += bytes;
 }
