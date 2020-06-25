@@ -316,9 +316,7 @@ int login_helper_check_fds(struct login_helper *helper)
 
 	/* Read buffered */
 	if (FD_ISSET(helper->stdout, &rfds)) {
-		status = login_helper_receive(helper);
-		if (status == -1)
-			return -1;
+		return login_helper_receive(helper);
 	}
 
 	return 0;
