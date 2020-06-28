@@ -1719,7 +1719,32 @@ static void SV_Say (qbool team)
 		snprintf(text, sizeof(text), "%s\n", p);
 	}
 
-	if (!sv_client->logged)
+	if (sv_client->login_helper != NULL) {
+
+		struct login_helper *helper = sv_client->login_helper;
+
+		/* Was waiting input from the user */
+		if (sv_client->login_helper_waiting_input) {
+
+			/* Send requested input to helper program */
+			int status = login_helper_write(helper,
+				LOGIN_HELPER_OPCODE_INPUT, text);
+
+			/* Drop client if any error occur whilst
+			 * writting data to helper program */
+			if (status) {
+				SV_DropClient(sv_client);
+				return;
+			}
+
+			/* Input dispatched to helper program */
+			sv_client->login_helper_waiting_input = false;
+			return;
+		}
+
+	}
+
+	else if (!sv_client->logged)
 	{
 		SV_ParseLogin(sv_client, text);
 		return;

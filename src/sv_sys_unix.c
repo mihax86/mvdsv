@@ -440,6 +440,7 @@ void Sys_Printf (char *fmt, ...)
 	char		*startpos, *endpos;
 	int		len;
         date_t		date;
+	extern struct login_helper *sv_active_login_helper;
 
 	va_start (argptr,fmt);
 	vsnprintf(text, sizeof(text), fmt, argptr);
@@ -464,8 +465,24 @@ void Sys_Printf (char *fmt, ...)
 			strlcpy(line, text, len + 1);
 			strlcpy(text, endpos + 1, strlen(text) - len + 1);
 			fprintf(stdout, "[%s] %s", date.str, line);
+
+			/* Command was issued by the helper program
+			 * send output to the helper too */
+			if (sv_active_login_helper != NULL) {
+				login_helper_write(sv_active_login_helper,
+					LOGIN_HELPER_OPCODE_PRINT, line);
+			}
+
 		} else {
 			fprintf(stdout, "[%s] %s", date.str, text);
+
+			/* Command was issued by the helper program
+			 * send output to the helper too */
+			if (sv_active_login_helper != NULL) {
+				login_helper_write(sv_active_login_helper,
+					LOGIN_HELPER_OPCODE_PRINT, text);
+			}
+
 			text[0] = '\0';
 		}
 

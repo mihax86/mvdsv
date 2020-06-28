@@ -5,6 +5,21 @@
 #include <stdbool.h>
 #include "qbuf.h"
 
+/* Those are the supported opcodes */
+#define LOGIN_HELPER_OPCODE_SERVERINFO "SINFO" /* Receive the serverinfo string */
+#define LOGIN_HELPER_OPCODE_USERINFO "UINFO" /* Receive userinfo string */
+#define LOGIN_HELPER_OPCODE_SETAUTH "SAUTH" /* Set *auth star key */
+#define LOGIN_HELPER_OPCODE_PRINT "PRINT" /* High priority print PRINT_HIGH */
+#define LOGIN_HELPER_OPCODE_CENTERPRINT "CPRNT" /* Print on the client's screen */
+#define LOGIN_HELPER_OPCODE_BROADCAST "BCAST" /* Broadcast message to all users */
+#define LOGIN_HELPER_OPCODE_SERVER_COMMAND "SVCMD" /* Issues a command on the server */
+#define LOGIN_HELPER_OPCODE_CLIENT_COMMAND "CLCMD" /* Issues a command on the client */
+#define LOGIN_HELPER_OPCODE_INPUT "INPUT" /* Requests input from the user */
+#define LOGIN_HELPER_OPCODE_LOGIN "LOGIN" /* Allows user to join */
+#define LOGIN_HELPER_OPCODE_END_OF_CMD "EOCMD" /* Marks the end of ouput from
+						* a command execution on
+						* the server */
+
 struct login_helper {
 	/* Arbitary user data (usually the client_t struct) */
 	void *userdata;
@@ -22,6 +37,9 @@ struct login_helper {
 	struct qbuf sendbuf;
 
 	/* All those callbacks *must* be set by the MVDSV server */
+
+	/* Will reply with the serverinfo string */
+	int (*serverinfo_handler)(struct login_helper *helper);
 
 	/* Will reply with the full userinfo string */
 	int (*userinfo_handler)(struct login_helper *helper);

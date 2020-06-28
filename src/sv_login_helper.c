@@ -14,17 +14,6 @@ extern char **environ;
 /* All opcodes have 5 bytes */
 #define LOGIN_HELPER_OPCODE_SIZE 5
 
-/* Those are the supported opcodes */
-#define LOGIN_HELPER_OPCODE_USERINFO "UINFO" /* Receive userinfo string */
-#define LOGIN_HELPER_OPCODE_SETAUTH "SAUTH" /* Set *auth star key */
-#define LOGIN_HELPER_OPCODE_PRINT "PRINT" /* High priority print PRINT_HIGH */
-#define LOGIN_HELPER_OPCODE_CENTERPRINT "CPRNT" /* Print on the client's screen */
-#define LOGIN_HELPER_OPCODE_BROADCAST "BCAST" /* Broadcast message to all users */
-#define LOGIN_HELPER_OPCODE_SERVER_COMMAND "SVCMD" /* Issues a command on the server */
-#define LOGIN_HELPER_OPCODE_CLIENT_COMMAND "CLCMD" /* Issues a command on the client */
-#define LOGIN_HELPER_OPCODE_INPUT "INPUT" /* Requests input from the user */
-#define LOGIN_HELPER_OPCODE_LOGIN "LOGIN" /* Allows user to join */
-
 static void close_pipe(int *fds)
 {
 	close(fds[0]);
@@ -159,7 +148,13 @@ static int login_helper_parse(struct login_helper *helper, const char *data,
 		return helper->userinfo_handler(helper);
 	}
 
-	/* Setinfo request */
+	/* Serverinfo request */
+	else if (!memcmp(data, LOGIN_HELPER_OPCODE_SERVERINFO,
+			LOGIN_HELPER_OPCODE_SIZE)) {
+		return helper->serverinfo_handler(helper);
+	}
+
+	/* Set auth request */
 	else if (!memcmp(data, LOGIN_HELPER_OPCODE_SETAUTH,
 			LOGIN_HELPER_OPCODE_SIZE)) {
 		return helper->setauth_handler(helper,
@@ -313,7 +308,16 @@ int login_helper_write(struct login_helper *helper,
 	if (opcode_size != LOGIN_HELPER_OPCODE_SIZE)
 		return -1;
 
-	int data_size = strlen(data);
+	int data_size = strlen(data != NULL ? data : "");
+
+	if (data_size > 0) {
+
+		/* Strip line break at end of string, we don't want the
+		 * helper needing to parse those line breaks
+		 * at the end of the line */
+		if (data[data_size-1] == '\n')
+			data_size--;
+	}
 
 	struct qbuf *sendbuf = &helper->sendbuf;
 	unsigned int needed_space = 4 + opcode_size + data_size;

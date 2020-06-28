@@ -30,6 +30,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 cvar_t	sv_login = {"sv_login", "0"};	// if enabled, login required
 cvar_t  sv_login_helper = { "sv_login_helper", "" };
 
+/* Makes Sys_Printf() output data to the login_helper */
+struct login_helper *sv_active_login_helper = NULL;
+
 extern cvar_t sv_hashpasswords;
 
 typedef enum {a_free, a_ok, a_blocked} acc_state_t;
@@ -524,8 +527,10 @@ void Login_Init (void)
 static int SV_LoginHelperServerCommand_cb(struct login_helper *helper, const char *cmd)
 {
 	Sys_Printf("Executing command on the server: %s\n", cmd);
+	sv_active_login_helper = helper;
 	Cmd_ExecuteString(cmd);
-	return 0;
+	sv_active_login_helper = NULL;
+	return login_helper_write(helper, LOGIN_HELPER_OPCODE_END_OF_CMD, NULL);
 }
 
 static int SV_LoginHelperClientCommand_cb(struct login_helper *helper, const char *cmd)
@@ -581,15 +586,26 @@ static int SV_LoginHelperBroadcast_cb(struct login_helper *helper, const char *m
 static int SV_LoginHelperUserinfo_cb(struct login_helper *helper)
 {
 	client_t *cl = helper->userdata;
-	char info[2048];
+	char partial[MAX_EXT_INFO_STRING];
+	char info[8192];
 
-	/* TODO: Add real ip to this information */
-	/* Fetch userinfo string */
-	if (!Info_ReverseConvert(&cl->_userinfo_ctx_, info, sizeof(info)))
+	/* Fetch info string */
+	if (!Info_ReverseConvert(&cl->_userinfo_ctx_, partial, sizeof(partial)))
 		return -1;
 
-	/* Write userinfo back to login helper */
-	return login_helper_write(helper, "UINFO", info);
+	snprintf(info, sizeof(info), "%s\\userid\\%d\\ip\\%d.%d.%d.%d",
+		partial, cl->userid, cl->realip.ip[0], cl->realip.ip[1],
+		cl->realip.ip[2], cl->realip.ip[3]);
+
+	/* Write info back to login helper */
+	return login_helper_write(helper, LOGIN_HELPER_OPCODE_USERINFO, info);
+}
+
+static int SV_LoginHelperServerinfo_cb(struct login_helper *helper)
+{
+	/* Write info back to login helper */
+	return login_helper_write(helper, LOGIN_HELPER_OPCODE_SERVERINFO,
+		svs.info);
 }
 
 static int SV_LoginHelperLogin_cb(struct login_helper *helper)
@@ -660,6 +676,7 @@ qbool SV_Login(client_t *cl)
 			helper->centerprint_handler = SV_LoginHelperCenterPrint_cb;
 			helper->broadcast_handler = SV_LoginHelperBroadcast_cb;
 			helper->userinfo_handler = SV_LoginHelperUserinfo_cb;
+			helper->serverinfo_handler = SV_LoginHelperServerinfo_cb;
 			helper->setauth_handler = SV_LoginHelperSetAuth_cb;
 			helper->login_handler = SV_LoginHelperLogin_cb;
 
@@ -744,30 +761,6 @@ void SV_ParseLogin(client_t *cl, const char *text)
 {
 	extern cvar_t sv_forcenick;
 	char *log1, *pass;
-
-	if (cl->login_helper != NULL) {
-
-		struct login_helper *helper = cl->login_helper;
-
-		/* Was waiting input from the user */
-		if (cl->login_helper_waiting_input) {
-
-			/* Send requested input to helper program */
-			int status = login_helper_write(helper, "INPUT", text);
-
-			/* Drop client if any error occur whilst
-			 * writting data to helper program */
-			if (status) {
-				SV_DropClient(cl);
-				return;
-			}
-
-			/* Input dispatched to helper program */
-			cl->login_helper_waiting_input = false;
-		}
-
-		return;
-	}
 
 	if (Cmd_Argc() > 2)
 	{
