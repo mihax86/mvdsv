@@ -1722,12 +1722,13 @@ static void SV_Say (qbool team)
 	if (sv_client->login_helper != NULL) {
 
 		struct login_helper *helper = sv_client->login_helper;
+		int status;
 
 		/* Was waiting input from the user */
 		if (sv_client->login_helper_waiting_input) {
 
 			/* Send requested input to helper program */
-			int status = login_helper_write(helper,
+			status = login_helper_write(helper,
 				LOGIN_HELPER_OPCODE_INPUT, text);
 
 			/* Drop client if any error occur whilst
@@ -1742,6 +1743,14 @@ static void SV_Say (qbool team)
 			return;
 		}
 
+		/* Send message to helper but still output the message */
+		status = login_helper_write(helper,
+			LOGIN_HELPER_OPCODE_INPUT, text);
+
+		if (status) {
+			SV_DropClient(sv_client);
+			return;
+		}
 	}
 
 	else if (!sv_client->logged)
