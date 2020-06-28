@@ -28,10 +28,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define ACC_DIR "users"
 
 cvar_t	sv_login = {"sv_login", "0"};	// if enabled, login required
+
+#if defined(WITH_LOGIN_HELPER)
+
 cvar_t  sv_login_helper = { "sv_login_helper", "" };
 
 /* Makes Sys_Printf() output data to the login_helper */
 struct login_helper *sv_active_login_helper = NULL;
+
+#endif
 
 extern cvar_t sv_hashpasswords;
 
@@ -514,6 +519,7 @@ void Login_Init (void)
 	// load account list
 	//SV_LoadAccounts();
 
+#if defined(WITH_LOGIN_HELPER)
 	/* Initialize login helper state */
 	client_t *cl;
 	for (cl = svs.clients; cl - svs.clients < MAX_CLIENTS; cl++) {
@@ -522,8 +528,10 @@ void Login_Init (void)
 		cl->login_helper = NULL;
 		cl->login_helper_waiting_input = false;
 	}
+#endif
 }
 
+#if defined(WITH_LOGIN_HELPER)
 static int SV_LoginHelperServerCommand_cb(struct login_helper *helper, const char *cmd)
 {
 	sv_active_login_helper = helper;
@@ -614,6 +622,8 @@ static int SV_LoginHelperLogin_cb(struct login_helper *helper)
 	return 0;
 }
 
+#endif	/* WITH_LOGIN_HELPER */
+
 /*
 ===============
 SV_Login
@@ -648,6 +658,7 @@ qbool SV_Login(client_t *cl)
 		return true;
 	}
 
+#if defined(WITH_LOGIN_HELPER)
 	/* Login helper active */
 	if (sv_login_helper.string[0] != '\0') {
 
@@ -684,6 +695,7 @@ qbool SV_Login(client_t *cl)
 		cl->login[0] = 0;
 		return false;
 	}
+#endif
 
 	// check for account for ip
 	ip = va("%d.%d.%d.%d", cl->realip.ip[0], cl->realip.ip[1], cl->realip.ip[2], cl->realip.ip[3]);
@@ -722,14 +734,17 @@ void SV_Logout(client_t *cl)
 		cl->logged = 0;
 	}
 
+#if defined(WITH_LOGIN_HELPER)
 	/* Close helper if program is running */
 	if (cl->login_helper != NULL) {
 		login_helper_free(cl->login_helper);
 		cl->login_helper = NULL;
 		cl->login_helper_waiting_input = false;
 	}
+#endif
 }
 
+#if defined(WITH_LOGIN_HELPER)
 void SV_LoginHelperUpdate()
 {
 	client_t *cl = svs.clients;
@@ -756,6 +771,7 @@ void SV_LoginHelperUpdate()
 		}
 	}
 }
+#endif
 
 void SV_ParseLogin(client_t *cl)
 {

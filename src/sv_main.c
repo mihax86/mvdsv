@@ -3218,7 +3218,9 @@ void SV_Frame (double time1)
 	// get packets
 	SV_ReadPackets ();
 
+#if defined(WITH_LOGIN_HELPER)
 	SV_LoginHelperUpdate();
+#endif
 
 	// move autonomous things around if enough time has passed
 	if (!sv.paused) {

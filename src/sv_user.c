@@ -1718,7 +1718,7 @@ static void SV_Say (qbool team)
 		// form text[].
 		snprintf(text, sizeof(text), "%s\n", p);
 	}
-
+#if defined(WITH_LOGIN_HELPER)
 	if (sv_client->login_helper != NULL) {
 
 		struct login_helper *helper = sv_client->login_helper;
@@ -1749,6 +1749,13 @@ static void SV_Say (qbool team)
 		SV_ParseLogin(sv_client);
 		return;
 	}
+#else
+	if (!sv_client->logged)
+	{
+		SV_ParseLogin(sv_client);
+		return;
+	}
+#endif
 
 	// try handle say in the mod.
 	SV_EndRedirect ();

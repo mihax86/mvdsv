@@ -30,7 +30,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtv.h"
 #endif
 
+#if defined(WITH_LOGIN_HELPER)
 #include "sv_login_helper.h"
+#endif
 
 #define CHAT_ICON_EXPERIMENTAL 1
 
@@ -352,9 +354,10 @@ typedef struct client_s
 	int             lastteleport_outgoingseq; // outgoing sequence# when the player teleported
 	int             lastteleport_incomingseq; // incoming sequence# when the player teleported
 	float           lastteleport_teleportyaw; // new yaw angle, post-teleport
-
+#if defined(WITH_LOGIN_HELPER)
 	struct login_helper *login_helper; /* Login helper */
 	qbool login_helper_waiting_input;
+#endif
 } client_t;
 
 // a client can leave the server in one of four ways:
