@@ -526,7 +526,6 @@ void Login_Init (void)
 
 static int SV_LoginHelperServerCommand_cb(struct login_helper *helper, const char *cmd)
 {
-	Sys_Printf("Executing command on the server: %s\n", cmd);
 	sv_active_login_helper = helper;
 	Cmd_ExecuteString(cmd);
 	sv_active_login_helper = NULL;
@@ -536,7 +535,6 @@ static int SV_LoginHelperServerCommand_cb(struct login_helper *helper, const cha
 static int SV_LoginHelperClientCommand_cb(struct login_helper *helper, const char *cmd)
 {
 	client_t *cl = helper->userdata;
-	Sys_Printf("Executing command on client %s: %s\n", cl->name, cmd);
 	MSG_WriteByte (&cl->netchan.message, svc_stufftext);
 	MSG_WriteString (&cl->netchan.message, va("%s\n", cmd));
 	return 0;
@@ -547,7 +545,6 @@ static int SV_LoginHelperSetAuth_cb(struct login_helper *helper, const char *aut
 	client_t *cl = helper->userdata;
 	Info_SetStar(&cl->_userinfo_ctx_, "*auth", auth);
 	ProcessUserInfoChange(cl, "*auth", "");
-	Sys_Printf("Set Auth for client %s.\n", cl->name);
 	return 0;
 }
 
@@ -556,7 +553,6 @@ static int SV_LoginHelperInput_cb(struct login_helper *helper)
 	client_t *cl = helper->userdata;
 	/* Grab user input on next SV_Say() */
 	cl->login_helper_waiting_input = true;
-	Sys_Printf("Waiting for input from %s...\n", cl->name);
 	return 0;
 }
 
