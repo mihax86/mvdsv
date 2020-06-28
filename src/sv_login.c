@@ -735,6 +735,10 @@ void SV_LoginHelperUpdate()
 	client_t *cl = svs.clients;
 	int i;
 
+	/* Helper not active */
+	if (sv_login_helper.string[0] == '\0')
+		return;
+
 	for (i = 0; i < MAX_CLIENTS; i++, cl++) {
 
 		struct login_helper *helper = cl->login_helper;
@@ -753,7 +757,7 @@ void SV_LoginHelperUpdate()
 	}
 }
 
-void SV_ParseLogin(client_t *cl, const char *text)
+void SV_ParseLogin(client_t *cl)
 {
 	extern cvar_t sv_forcenick;
 	char *log1, *pass;
