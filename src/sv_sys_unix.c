@@ -504,6 +504,7 @@ void Sys_Init (void)
 {
 	Cvar_Register (&sys_nostdout);
 	Cvar_Register (&sys_extrasleep);
+	signal(SIGCHLD, SIG_IGN);
 }
 
 void Sys_Sleep(unsigned long ms)

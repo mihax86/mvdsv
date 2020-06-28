@@ -1,3 +1,22 @@
+/*
+  Copyright (C) 2020 Luiz A. Bühnemann
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+  See the GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*/
+
 #ifndef SV_LOGIN_HELPER_H
 #define SV_LOGIN_HELPER_H
 
@@ -6,19 +25,19 @@
 #include "qbuf.h"
 
 /* Those are the supported opcodes */
-#define LOGIN_HELPER_OPCODE_SERVERINFO "SINFO" /* Receive the serverinfo string */
-#define LOGIN_HELPER_OPCODE_USERINFO "UINFO" /* Receive userinfo string */
-#define LOGIN_HELPER_OPCODE_SETAUTH "SAUTH" /* Set *auth star key */
+#define LOGIN_HELPER_OPCODE_SERVERINFO "SINFO" /* Request the serverinfo string */
+#define LOGIN_HELPER_OPCODE_USERINFO "UINFO" /* Request userinfo string */
+#define LOGIN_HELPER_OPCODE_SETAUTH "SAUTH" /* Set *auth star key on client */
 #define LOGIN_HELPER_OPCODE_PRINT "PRINT" /* High priority print PRINT_HIGH */
-#define LOGIN_HELPER_OPCODE_CENTERPRINT "CPRNT" /* Print on the client's screen */
+#define LOGIN_HELPER_OPCODE_CENTERPRINT "CPRNT" /* Print on the center client's screen */
 #define LOGIN_HELPER_OPCODE_BROADCAST "BCAST" /* Broadcast message to all users */
 #define LOGIN_HELPER_OPCODE_SERVER_COMMAND "SVCMD" /* Issues a command on the server */
 #define LOGIN_HELPER_OPCODE_CLIENT_COMMAND "CLCMD" /* Issues a command on the client */
 #define LOGIN_HELPER_OPCODE_INPUT "INPUT" /* Requests input from the user */
-#define LOGIN_HELPER_OPCODE_LOGIN "LOGIN" /* Allows user to join */
-#define LOGIN_HELPER_OPCODE_END_OF_CMD "EOCMD" /* Marks the end of ouput from
+#define LOGIN_HELPER_OPCODE_LOGIN "LOGIN" /* Allows user to join the server */
+#define LOGIN_HELPER_OPCODE_END_OF_CMD "EOCMD" /* Marks the end of output from
 						* a command execution on
-						* the server */
+						* the server (SVCMD) */
 
 struct login_helper {
 	/* Arbitary user data (usually the client_t struct) */
@@ -27,7 +46,7 @@ struct login_helper {
 	/* Used for communication with the helper program */
 	int stdin, stdout;
 
-	/* PID of the helper program. (unused) SIGCHILD is ignored by mvdsv */
+	/* PID of the helper program. (unused) SIGCHLD is ignored by mvdsv */
 	pid_t pid;
 
 	/* Receive buffer */
@@ -53,7 +72,7 @@ struct login_helper {
 	/* Will print on the center client's screen */
 	int (*centerprint_handler)(struct login_helper *helper, const char *msg);
 
-	/* Message will be broadcast to all the server clients */
+	/* Message will be broadcast to all the server's clients */
 	int (*broadcast_handler)(struct login_helper *helper, const char *msg);
 
 	/* Will prompt the player for input */
