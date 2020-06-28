@@ -127,9 +127,11 @@ void SV_LoadAccounts(void)
 	account_t *acc = accounts;
 	client_t *cl;
 
-	/* Login helper active, no need to change users state */
+#if defined(WITH_LOGIN_HELPER)
+	/* Login helper active, don't change the user's state */
 	if (sv_login_helper.string[0] != '\0')
 		return;
+#endif
 
 	if ( (f = fopen( va("%s/" ACC_FILE, fs_gamedir) ,"rt")) == NULL)
 	{
@@ -508,7 +510,9 @@ static int checklogin(char *log1, char *pass, int num, quse_t use)
 void Login_Init (void)
 {
 	Cvar_Register (&sv_login);
+#if defined(WITH_LOGIN_HELPER)
 	Cvar_Register (&sv_login_helper);
+#endif
 
 	Cmd_AddCommand ("acc_create",SV_CreateAccount_f);
 	Cmd_AddCommand ("acc_remove",SV_RemoveAccount_f);
