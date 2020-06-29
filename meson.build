@@ -84,7 +84,12 @@ if target_machine.system() == 'windows'
 		link_args += '-static-libgcc'
 	endif
 else
-	mvdsv_sources += 'src/sv_sys_unix.c'
+	mvdsv_sources += [
+		      'src/sv_sys_unix.c',
+		      'src/sv_login_helper.c',
+		      'src/qbuf.c'
+        ]
+	c_args += '-DWITH_LOGIN_HELPER'
 	deps += [
 		meson.get_compiler('c').find_library('m'),
 		meson.get_compiler('c').find_library('dl'),
