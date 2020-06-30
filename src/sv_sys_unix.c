@@ -471,7 +471,7 @@ void Sys_Printf (char *fmt, ...)
 			 * send output to the helper too */
 			if (sv_active_login_helper != NULL) {
 				login_helper_write(sv_active_login_helper,
-					LOGIN_HELPER_OPCODE_PRINT, line);
+					LOGIN_HELPER_OPCODE_SERVER_OUTPUT, line);
 			}
 #endif
 		} else {
@@ -482,7 +482,7 @@ void Sys_Printf (char *fmt, ...)
 			 * send output to the helper too */
 			if (sv_active_login_helper != NULL) {
 				login_helper_write(sv_active_login_helper,
-					LOGIN_HELPER_OPCODE_PRINT, text);
+					LOGIN_HELPER_OPCODE_SERVER_OUTPUT, text);
 			}
 #endif
 			text[0] = '\0';

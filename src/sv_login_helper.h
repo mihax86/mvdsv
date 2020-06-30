@@ -35,7 +35,9 @@
 #define LOGIN_HELPER_OPCODE_CLIENT_COMMAND "CLCMD" /* Issues a command on the client */
 #define LOGIN_HELPER_OPCODE_INPUT "INPUT" /* Requests input from the user */
 #define LOGIN_HELPER_OPCODE_LOGIN "LOGIN" /* Allows user to join the server */
-#define LOGIN_HELPER_OPCODE_END_OF_CMD "EOCMD" /* Marks the end of output from
+#define LOGIN_HELPER_OPCODE_CLIENT_OUTPUT "CLOUT" /* Client output */
+#define LOGIN_HELPER_OPCODE_SERVER_OUTPUT "SVOUT" /* Server output */
+#define LOGIN_HELPER_OPCODE_END_OF_CMD "SVEND" /* Marks the end of output from
 						* a command execution on
 						* the server (SVCMD) */
 

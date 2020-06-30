@@ -158,6 +158,7 @@ static const char *__to_c_string(const char *data, int size)
 	return str;
 }
 
+/* NOTE: Only helper 2 server messages are parsed here */
 static int login_helper_parse(struct login_helper *helper, const char *data,
 	uint32_t size)
 {
