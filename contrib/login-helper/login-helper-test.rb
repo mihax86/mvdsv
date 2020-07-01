@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# set sv_login_helper to "ruby /path/to/this/script.rb"
 def write_message(msg)
   a = [ msg.length ].pack("L")
   STDOUT.write(a.to_s + msg)

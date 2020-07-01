@@ -1,5 +1,6 @@
 <?php
 
+// set sv_login_helper to "php /path/to/this/script.php"
 //==============================================================================
 //
 // Communication functions

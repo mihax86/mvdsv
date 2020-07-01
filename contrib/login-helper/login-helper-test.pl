@@ -1,5 +1,5 @@
 #/usr/bin/perl -W
-
+# set sv_login_helper to "perl /path/to/this/script.pl"
 sub read_message
 {
     my $status = sysread(STDIN, my $raw_size, 4);

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# set sv_login_helper to "python /path/to/this/script.py"
 import struct
 import sys
 
