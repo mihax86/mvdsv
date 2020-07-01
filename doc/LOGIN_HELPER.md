@@ -1,6 +1,7 @@
 #login helper
 
 ##What is it?
+
 The login helper is a program that enables the server admin to control
 the connected client's logon flow from the beggining to the end of the session.
 
@@ -14,6 +15,7 @@ from MVDSV, so the developer of the helper doesn't have to worry about the
 server's mainloop or anything complicated.
 
 ##How it works
+
 By setting sv\_login to a value greater than 0 and setting sv\_login\_helper
 to the helper program you want, every non-VIP player that tries to connect
 to the server, will spawn an independent helper program that will control
@@ -23,6 +25,7 @@ the login helper program exits, the server will automatically disconnect the
 user.
 
 ##How to write a login-helper program
+
 ###Packet format
 
 packet = [size (4 bytes unsigned long machine byte order)][data_section (size bytes)]
@@ -30,6 +33,7 @@ packet = [size (4 bytes unsigned long machine byte order)][data_section (size by
 data_section = [opcode (5 bytes)][opcode_data]
 
 ####Reading data
+
 You must parse the packet according to the format above. Read the first 4 bytes
 to know the size of the packet, and then read the rest of the packet using the
 size you just parsed. And don't worry about endianness, it's on the machine
@@ -39,6 +43,7 @@ After that you must deal with the "data\_section" which contains a 5 byte string
 (opcode) followed by the "opcode\_data" (if any).
 
 ####Writting data
+
 For writting just follow the same convention above, build the data_section of
 your packet and then calculate the total size of this data, send it first as
 a unsigned long in the native byte order, then send the packet data.
